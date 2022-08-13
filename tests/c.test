@@ -132,6 +132,8 @@
 00205  c/nl_before_return_false.cfg               c/case-nl_before_return.c
 00206  c/nl_before_return_true.cfg                c/case-nl_before_return.c
 00207  common/nl_before_ignore_after_case.cfg     c/nl_before_ignore_after_case.c
+00208  c/nl_case_colon_brace-1.cfg                c/case-2.c
+00209  c/nl_case_colon_brace-2.cfg                c/case-2.c
 
 
 # structure initializers

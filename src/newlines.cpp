@@ -877,6 +877,7 @@ void newline_del_between(Chunk *start, Chunk *end)
       && end->IsString("{")
       && (  start->IsString(")")
          || start->Is(CT_DO)
+         || start->Is(CT_CASE_COLON)
          || start->Is(CT_ELSE)))
    {
       end->MoveAfter(start);
@@ -4651,14 +4652,14 @@ void newlines_cleanup_braces(bool first)
       }
       else if (pc->Is(CT_CASE_COLON))
       {
-         Chunk *next = pc->GetNextNnl();
+         Chunk *next = pc->GetNextNcNnl();
 
          log_rule_B("nl_case_colon_brace");
 
          if (  next->Is(CT_BRACE_OPEN)
             && options::nl_case_colon_brace() != IARF_IGNORE)
          {
-            newline_iarf(pc, options::nl_case_colon_brace());
+            newline_iarf_pair(pc, next, options::nl_case_colon_brace());
          }
          else if (options::nl_after_case())
          {
