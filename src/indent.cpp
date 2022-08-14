@@ -4759,8 +4759,26 @@ void indent_preproc()
             pc->SetFlagBits(PCF_DONT_INDENT);
          }
       }
+      // Indent any continued lines if requested
+      log_rule_B("pp_indent_continue");
+
+      if (options::pp_indent_continue() != 0)
+      {
+         Chunk *nl = next->GetNextNl();
+
+         while (nl->Is(CT_NL_CONT))
+         {
+            // Continued lines get indented past the first line
+            Chunk  *nlnext = nl->GetNext();
+            size_t newcol  = max<int>(0, pc->column + options::pp_indent_continue());
+            LOG_FMT(LINDLINE, "%s(%d): indenting continued line; nlnext orig_line is %zu, column is %zu, newcol is %zu, text is '%s'\n",
+                    __func__, __LINE__, nlnext->orig_line, next->column, newcol, nlnext->Text());
+            reindent_line(nlnext, newcol);
+            nlnext->SetFlagBits(PCF_DONT_INDENT);
+            nl = nlnext->GetNextNl();
+         }
+      }
       LOG_FMT(LPPIS, "%s(%d): orig_line %zu to %zu (len %zu, next->col %zu)\n",
-              __func__, __LINE__, pc->orig_line, 1 + pp_level, pc->Len(),
-              next ? next->column : -1);
+              __func__, __LINE__, pc->orig_line, 1 + pp_level, pc->Len(), next->column);
    }
 } // indent_preproc

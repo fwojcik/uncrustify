@@ -4045,6 +4045,10 @@ pp_indent_at_level0;
 extern BoundedOption<unsigned, 0, 16>
 pp_indent_count; // = 1
 
+// Specifies the number of additional spaces to indent continued preprocessor lines
+extern BoundedOption<signed, -16, 16>
+pp_indent_continue;
+
 // Add or remove space after # based on pp_level of #if blocks.
 extern Option<iarf_e>
 pp_space_after;

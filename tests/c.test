@@ -234,6 +234,15 @@
 00632  c/nl_assign2.cfg                           c/nl_assign.c
 00633  c/nl_assign1.cfg                           c/bug_3156.c
 
+00640  c/pp_space_none_nlcont.cfg                 c/pp_space_before_after_nlcont.c
+00641  c/pp_space_after_nlcont.cfg                c/pp_space_before_after_nlcont.c
+00642  c/pp_space_before_nlcont.cfg               c/pp_space_before_after_nlcont.c
+00643  c/pp_space_before_after_nlcont.cfg         c/pp_space_before_after_nlcont.c
+00644  c/pp_space_none_nlcont_neg.cfg             c/pp_space_before_after_nlcont.c
+00645  c/pp_space_after_nlcont_neg.cfg            c/pp_space_before_after_nlcont.c
+00646  c/pp_space_before_nlcont_neg.cfg           c/pp_space_before_after_nlcont.c
+00647  c/pp_space_before_after_nlcont_neg.cfg     c/pp_space_before_after_nlcont.c
+
 # function def newlines
 
 00701  common/func-def-1.cfg                      c/function-def.c
