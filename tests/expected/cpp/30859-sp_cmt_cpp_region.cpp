@@ -4,10 +4,10 @@
 //ALT_BEGINMORE real region
 
 int foo()
-{ //ALT_BEGIN not-region
-	int x = 0; //BEGIN not-region
-	return x; //END not-region
-} //ALT_END not-region
+{ // ALT_BEGIN not-region
+	int x = 0; // BEGIN not-region
+	return x; // END not-region
+} // ALT_END not-region
 
 //ALT_ENDMORE real region
 //ALT_END real region

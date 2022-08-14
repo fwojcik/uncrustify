@@ -1198,6 +1198,12 @@ sp_cmt_cpp_start;
 extern Option<iarf_e>
 sp_cmt_cpp_region;
 
+// If set, comments matching sp_cmt_cpp_region_regex will be considered C++ region
+// marker comments for the purposes of honoring sp_cmt_cpp_region, instead of those
+// matching '^BEGIN' or '^END'.
+extern Option<string>
+sp_cmt_cpp_region_regex;
+
 // If true, space added with sp_cmt_cpp_start will be added after Doxygen
 // sequences like '///', '///<', '//!' and '//!<'.
 extern Option<bool>

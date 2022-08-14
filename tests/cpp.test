@@ -406,6 +406,8 @@
 30855  common/empty.cfg                                     cpp/cpp_move.cpp
 30856  cpp/sp_cmt_cpp_region-f.cfg                          cpp/sp_cmt_cpp_region.cpp
 30857  cpp/sp_cmt_cpp_region-r.cfg                          cpp/sp_cmt_cpp_region.cpp
+30858  cpp/sp_cmt_cpp_region_regex-f.cfg                    cpp/sp_cmt_cpp_region.cpp
+30859  cpp/sp_cmt_cpp_region_regex-r.cfg                    cpp/sp_cmt_cpp_region.cpp
 
 30860  cpp/sf574.cfg                                        cpp/sf574.cpp
 

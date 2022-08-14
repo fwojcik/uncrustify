@@ -49,6 +49,10 @@ int  line_number;
 char char_number[16] = { 0 };
 
 
+// for determining region markers
+std::regex cmt_cpp_region_regex;
+
+
 void set_numbering(bool status)
 {
    if (options::set_numbering_for_html_output())
@@ -639,6 +643,15 @@ void output_text(FILE *pfile)
 {
    bool tracking = cpd.html_type != tracking_type_e::TT_NONE;                 // special for debugging
 
+   // rule is logged when regex is used, not here
+   if (options::sp_cmt_cpp_region_regex().length() > 0)
+   {
+      cmt_cpp_region_regex = std::regex(options::sp_cmt_cpp_region_regex());
+   }
+   else
+   {
+      cmt_cpp_region_regex = std::regex("^(BEGIN|END)");
+   }
    cpd.fout        = pfile;
    cpd.did_newline = true;
    cpd.column      = 1;
@@ -2017,16 +2030,20 @@ static Chunk *output_comment_cpp(Chunk *first)
       {
          ++cmt_text;
       }
+      // If sp_cmt_cpp_region is not ignore, and we determine
+      // that we are dealing with a region marker, then use
+      // sp_cmt_cpp_region instead of sp_cmt_cpp_start.
+
+      log_rule_B("sp_cmt_cpp_region");
 
       // Determine if we are dealing with a region marker
       if (  (  first->GetPrev()->IsNullChunk()
             || first->GetPrev()->orig_line != first->orig_line)
-         && (  strncmp(cmt_text, "BEGIN", 5) == 0
-            || strncmp(cmt_text, "END", 3) == 0))
+         && (options::sp_cmt_cpp_region() != IARF_IGNORE))
       {
-         // If sp_cmt_cpp_region is not ignore, use that instead of
-         // sp_cmt_cpp_start
-         if (options::sp_cmt_cpp_region() != IARF_IGNORE)
+         log_rule_B("sp_cmt_cpp_region_regex");
+
+         if (std::regex_search(cmt_text, cmt_cpp_region_regex, regex_constants::match_any))
          {
             sp_cmt = &options::sp_cmt_cpp_region;
          }
