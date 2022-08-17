@@ -74,8 +74,9 @@ static void try_split_here(cw_entry &ent, Chunk *pc);
  * Scan backwards and find the best token for the split.
  *
  * @param start The first chunk that exceeded the limit
+ * @return      The last chunk that was processed
  */
-static bool split_line(Chunk *pc);
+static Chunk *split_line(Chunk *pc);
 
 
 /**
@@ -171,10 +172,11 @@ void do_code_width()
          {
             continue;
          }
-         bool split_OK = split_line(pc);
+         Chunk *newpc = split_line(pc);
 
-         if (split_OK)
+         if (newpc != nullptr)
          {
+            pc = newpc;
             LOG_FMT(LSPLIT, "%s(%d): orig_line is %zu, orig_col is %zu, Text() '%s'\n",
                     __func__, __LINE__, pc->orig_line, pc->orig_col, pc->Text());
          }
@@ -338,7 +340,7 @@ static void try_split_here(cw_entry &ent, Chunk *pc)
 } // try_split_here
 
 
-static bool split_line(Chunk *start)
+static Chunk *split_line(Chunk *start)
 {
    LOG_FUNC_ENTRY();
    LOG_FMT(LSPLIT, "%s(%d): start->Text() '%s', orig_line is %zu, orig_col is %zu, type is %s\n",
@@ -359,7 +361,7 @@ static bool split_line(Chunk *start)
       newlines_cleanup_braces(false);
       // Issue #1352
       cpd.changes++;
-      return(false);
+      return(nullptr);
    }
    LOG_FMT(LSPLIT, "%s(%d): before ls_code_width\n", __func__, __LINE__);
 
@@ -376,7 +378,7 @@ static bool split_line(Chunk *start)
 
       if (!is_past_width(start))
       {
-         return(true);
+         return(start);
       }
       LOG_FMT(LSPLIT, "%s(%d): for split didn't work\n", __func__, __LINE__);
    }
@@ -400,11 +402,11 @@ static bool split_line(Chunk *start)
 
          if (!is_past_width(start))
          {
-            return(true);
+            return(start);
          }
       }
       split_fcn_params(start);
-      return(true);
+      return(start);
    }
 
    /*
@@ -414,7 +416,7 @@ static bool split_line(Chunk *start)
    {
       LOG_FMT(LSPLIT, " ** TEMPLATE SPLIT **\n");
       split_template(start);
-      return(true);
+      return(start);
    }
    LOG_FMT(LSPLIT, "%s(%d):\n", __func__, __LINE__);
    // Try to find the best spot to split the line
@@ -519,7 +521,7 @@ static bool split_line(Chunk *start)
          LOG_FMT(LSPLIT, " ** NO GO **\n");
 
          // TODO: Add in logic to handle 'hard' limits by backing up a token
-         return(true);
+         return(start);
       }
    }
    // add a newline before pc
@@ -540,7 +542,7 @@ static bool split_line(Chunk *start)
 
       split_before_chunk(pc);
    }
-   return(true);
+   return(start);
 } // split_line
 
 
