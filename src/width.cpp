@@ -96,7 +96,7 @@ static Chunk *split_line(Chunk *pc);
  * @return        the token that should have a newline
  *                inserted before it
  */
-static void split_fcn_params(Chunk *start);
+static Chunk *split_fcn_params(Chunk *start);
 
 
 /**
@@ -405,8 +405,7 @@ static Chunk *split_line(Chunk *start)
             return(start);
          }
       }
-      split_fcn_params(start);
-      return(start);
+      return(split_fcn_params(start));
    }
 
    /*
@@ -715,27 +714,8 @@ static void split_fcn_params_full(Chunk *start)
 }
 
 
-static void split_fcn_params(Chunk *start)
+static void split_fcn_params_greedy(Chunk *fpo)
 {
-   LOG_FUNC_ENTRY();
-   LOG_FMT(LSPLIT, "%s(%d): start->Text() is '%s', orig_line is %zu, orig_col is %zu\n",
-           __func__, __LINE__, start->Text(), start->orig_line, start->orig_col);
-   Chunk *fpo = start;
-
-   if (!start->Is(CT_FPAREN_OPEN))
-   {
-      // Find the opening function parenthesis
-      LOG_FMT(LSPLIT, "%s(%d): Find the opening function parenthesis\n", __func__, __LINE__);
-
-      while (  ((fpo = fpo->GetPrev()) != nullptr)
-            && fpo->IsNotNullChunk()
-            && fpo->IsNot(CT_FPAREN_OPEN))
-      {
-         // do nothing
-         LOG_FMT(LSPLIT, "%s(%d): '%s', orig_col is %zu, level is %zu\n",
-                 __func__, __LINE__, fpo->Text(), fpo->orig_col, fpo->level);
-      }
-   }
    Chunk  *pc     = fpo->GetNextNcNnl();
    size_t min_col = pc->column;
 
@@ -871,7 +851,34 @@ static void split_fcn_params(Chunk *start)
       reindent_line(pc, min_col);
       cpd.changes++;
    }
-} // split_fcn_params
+} // split_fcn_params_greedy
+
+
+static Chunk *split_fcn_params(Chunk *start)
+{
+   LOG_FUNC_ENTRY();
+   LOG_FMT(LSPLIT, "%s(%d): start->Text() is '%s', orig_line is %zu, orig_col is %zu\n",
+           __func__, __LINE__, start->Text(), start->orig_line, start->orig_col);
+   Chunk *fpo = start;
+
+   if (!start->Is(CT_FPAREN_OPEN))
+   {
+      // Find the opening function parenthesis
+      LOG_FMT(LSPLIT, "%s(%d): Find the opening function parenthesis\n", __func__, __LINE__);
+
+      while (  ((fpo = fpo->GetPrev()) != nullptr)
+            && fpo->IsNotNullChunk()
+            && fpo->IsNot(CT_FPAREN_OPEN))
+      {
+         // do nothing
+         LOG_FMT(LSPLIT, "%s(%d): '%s', orig_col is %zu, level is %zu\n",
+                 __func__, __LINE__, fpo->Text(), fpo->orig_col, fpo->level);
+      }
+   }
+   split_fcn_params_greedy(fpo);
+
+   return(start);
+}
 
 
 static void split_template(Chunk *start)
