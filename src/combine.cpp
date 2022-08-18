@@ -2674,6 +2674,13 @@ static void handle_cpp_lambda(Chunk *sq_o)
          call_pa_o->SetParentType(CT_FUNC_CALL);
          call_pa_c->SetType(CT_FPAREN_CLOSE);
          call_pa_c->SetParentType(CT_FUNC_CALL);
+         Chunk *call_semi = call_pa_c->GetNextNcNnl();
+
+         if (  call_semi->IsNotNullChunk()
+            && call_semi->IsSemicolon())
+         {
+            call_semi->SetParentType(CT_FUNC_CALL);
+         }
       }
    }
    mark_cpp_lambda(sq_o);
@@ -3148,6 +3155,13 @@ static void handle_oc_block_type(Chunk *pc)
          apo->SetParentType(CT_FUNC_PROTO);
          apc->SetType(CT_FPAREN_CLOSE);
          apc->SetParentType(CT_FUNC_PROTO);
+         Chunk *call_semi = apc->GetNextNcNnl();
+
+         if (  call_semi->IsNotNullChunk()
+            && call_semi->IsSemicolon())
+         {
+            call_semi->SetParentType(CT_FUNC_PROTO);
+         }
          fix_fcn_def_params(apo);
          mark_function_return_type(nam, tpo->GetPrevNcNnlNi(), pt);   // Issue #2279
       }
