@@ -889,16 +889,20 @@ static Chunk *split_fcn_params(Chunk *start)
    {
       // Find the opening function parenthesis
       LOG_FMT(LSPLIT, "%s(%d): Find the opening function parenthesis\n", __func__, __LINE__);
+      size_t level = (start->IsSemicolon() || start->Is(CT_FPAREN_CLOSE)) ? start->level
+              : start->level - 1;
+      fpo = fpo->GetPrevType(CT_FPAREN_OPEN, level);
 
-      while (  ((fpo = fpo->GetPrev()) != nullptr)
-            && fpo->IsNotNullChunk()
-            && fpo->IsNot(CT_FPAREN_OPEN))
+      if (fpo->IsNullChunk())
       {
-         // do nothing
-         LOG_FMT(LSPLIT, "%s(%d): '%s', orig_col is %zu, level is %zu\n",
-                 __func__, __LINE__, fpo->Text(), fpo->orig_col, fpo->level);
+         fprintf(stderr, "%s(%d): Can't find fparen_open; bailing\n",
+                 __func__, __LINE__);
+         log_flush(true);
+         exit(EX_SOFTWARE);
       }
    }
+   LOG_FMT(LSPLIT, "%s(%d): '%s', orig_col is %zu, level is %zu\n",
+           __func__, __LINE__, fpo->Text(), fpo->orig_col, fpo->level);
    split_fcn_params_greedy(fpo);
 
    return(start);
