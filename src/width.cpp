@@ -80,21 +80,24 @@ static Chunk *split_line(Chunk *pc);
 
 
 /**
- * Figures out where to split a function def/proto/call
+ * Figures out where to split a function def/proto/call.
+ * This must not be called unless the function is known to
+ * need splitting!
  *
  * For function prototypes and definition. Also function calls where
  * level == brace_level:
- *   - find the open function parenthesis
- *     + if it doesn't have a newline right after it
- *       * see if all parameters will fit individually after the paren
- *       * if not, throw a newline after the open paren & return
- *   - scan backwards to the open fparen or comma
- *     + if there isn't a newline after that item, add one & return
- *     + otherwise, add a newline before the start token
+ *   - find the function's open parenthesis
+ *   - find the function's matching close parenthesis
+ *   - go through all chunks from open to close
+ *     + remember valid split points along the way
+ *       * valid split points are commas and function open parens,
+ *         except that empty function parens '()' are not split
+ *     + if a parameter doesn't fit on the current line, then
+ *       split at the previous valid split point
+ *   - If no splits happened, then force a split at the last splitpoint
  *
- * @param start   the offending token
- * @return        the token that should have a newline
- *                inserted before it
+ * @param start   the chunk that exceeded the length limit
+ * @return        the last chunk that was processed
  */
 static Chunk *split_fcn_params(Chunk *start);
 
@@ -738,105 +741,74 @@ static void split_fcn_params_full(Chunk *start)
 }
 
 
-static void split_fcn_params_greedy(Chunk *fpo)
+static void split_fcn_params_greedy(Chunk *fpo, Chunk *fpc)
 {
-   Chunk  *pc     = fpo->GetNextNcNnl();
-   size_t min_col = pc->column;
+   LOG_FUNC_ENTRY();
 
    log_rule_B("code_width");
-   LOG_FMT(LSPLIT, "    mincol is %zu, max_width is %zu\n",
-           min_col, options::code_width() - min_col);
 
-   int cur_width = 0;
-   int last_col  = -1;
+   Chunk  *end           = fpc->GetNext();  // Make sure that fpc is processed by the loop below.
+   Chunk  *splitpoint    = fpo;             // The opening fparen is a valid place to split the fcn.
+   size_t min_col        = fpo->GetNextNcNnl()->column;
+   int    hard_limit     = static_cast<int>(options::code_width());
+   int    added_newlines = 0;
 
-   LOG_FMT(LSPLIT, "%s(%d):look forward until CT_COMMA or CT_FPAREN_CLOSE\n", __func__, __LINE__);
+   LOG_FMT(LSPLIT, "%s(%d): fpo->Text() is '%s', orig_line is %zu, orig_col is %zu, col is %zu\n",
+           __func__, __LINE__, fpo->Text(), fpo->orig_line, fpo->orig_col, fpo->column);
+   LOG_FMT(LSPLIT, "%s(%d): fpc->Text() is '%s', orig_line is %zu, orig_col is %zu, col is %zu\n",
+           __func__, __LINE__, fpc->Text(), fpc->orig_line, fpc->orig_col, fpc->column);
+   LOG_FMT(LSPLIT, "%s(%d): splitpoint->Text() is '%s', orig_line is %zu, orig_col is %zu, col is %zu\n",
+           __func__, __LINE__, splitpoint->Text(), splitpoint->orig_line, splitpoint->orig_col, splitpoint->column);
+   LOG_FMT(LSPLIT, "    min_col is %zu, max_width is %d\n",
+           min_col, hard_limit);
 
-   while (pc->IsNotNullChunk())
+   for (Chunk *pc = fpo; pc != end; pc = pc->GetNext())
    {
-      LOG_FMT(LSPLIT, "%s(%d): pc->Text() '%s', type is %s\n",
-              __func__, __LINE__, pc->Text(), get_token_name(pc->GetType()));
+      LOG_FMT(LSPLIT, "%s(%d): pc is now '%s' from orig_line %zu, orig_col %zu, cur_col %zu\n",
+              __func__, __LINE__, pc->Text(), pc->orig_line, pc->orig_col, pc->column);
 
       if (pc->IsNewline())
       {
-         cur_width = 0;
-         last_col  = -1;
+         splitpoint = nullptr;
+         LOG_FMT(LSPLIT, "%s(%d): Newline; resetting splitpoint\n", __func__, __LINE__);
+         continue;
       }
-      else
+      // Only try splitting when we encounter a comma or fparen, and only split at
+      // commas or opening fparens that aren't part of empty parens '()'.
+      //
+      // Also keep track of current continuation indent amount when we encounter an fparen.
+      // XXX I am not at all sure this logic is correct, since fparens don't change
+      // the brace_level and that's the only way min_col can change aside from
+      // options (which never change at runtime). But this is how it was done in the
+      // previous code, so I'm keeping it.
+      bool ok_to_split_here = true;
+
+      if (  pc->Is(CT_FPAREN_OPEN)
+         || (pc->Is(CT_FPAREN_CLOSE)))
       {
-         if (last_col < 0)
+         if (pc->Is(CT_FPAREN_OPEN))
          {
-            last_col = pc->column;
-            LOG_FMT(LSPLIT, "%s(%d): last_col is %d\n",
-                    __func__, __LINE__, last_col);
-         }
-         cur_width += (pc->column - last_col) + pc->Len();
-         last_col   = pc->column + pc->Len();
-
-         LOG_FMT(LSPLIT, "%s(%d): last_col is %d\n",
-                 __func__, __LINE__, last_col);
-
-         if (  pc->Is(CT_COMMA)
-            || pc->Is(CT_FPAREN_CLOSE))
-         {
-            if (cur_width == 0)
+            // Don't split '()'
+            if (pc->GetNext()->Is(CT_FPAREN_CLOSE))
             {
-               fprintf(stderr, "%s(%d): cur_width is ZERO, cannot be decremented, at line %zu, column %zu\n",
-                       __func__, __LINE__, pc->orig_line, pc->orig_col);
-               log_flush(true);
-               exit(EX_SOFTWARE);
-            }
-            cur_width--;
-            LOG_FMT(LSPLIT, "%s(%d): cur_width is %d\n",
-                    __func__, __LINE__, cur_width);
-
-            log_rule_B("code_width");
-
-            if (  ((last_col - 1) > static_cast<int>(options::code_width()))
-               || pc->Is(CT_FPAREN_CLOSE))
-            {
-               break;
+               ok_to_split_here = false;
             }
          }
-      }
-      pc = pc->GetNext();
-   }
-   // back up until the prev is a comma
-   Chunk *prev = pc;
-
-   LOG_FMT(LSPLIT, "%s(%d): back up until the prev is a comma, begin is '%s', level is %zu\n",
-           __func__, __LINE__, prev->Text(), prev->level);
-
-   while ((prev = prev->GetPrev())->IsNotNullChunk())
-   {
-      LOG_FMT(LSPLIT, "%s(%d): prev->Text() is '%s', prev->orig_line is %zu, prev->orig_col is %zu\n",
-              __func__, __LINE__, prev->Text(), prev->orig_line, prev->orig_col);
-      LOG_FMT(LSPLIT, "%s(%d): prev->level is %zu, prev '%s', prev->GetType() is %s\n",
-              __func__, __LINE__, prev->level, prev->Text(), get_token_name(prev->GetType()));
-
-      if (  prev->IsNewline()
-         || prev->Is(CT_COMMA))
-      {
-         LOG_FMT(LSPLIT, "%s(%d): found at %zu\n",
-                 __func__, __LINE__, prev->orig_col);
-         break;
-      }
-      LOG_FMT(LSPLIT, "%s(%d): last_col is %d, prev->Len() is %zu\n",
-              __func__, __LINE__, last_col, prev->Len());
-      last_col -= prev->Len();
-      LOG_FMT(LSPLIT, "%s(%d): last_col is %d\n",
-              __func__, __LINE__, last_col);
-
-      if (prev->Is(CT_FPAREN_OPEN))
-      {
-         pc = prev->GetNext();
+         else
+         {
+            // Don't split on ')', but do recompute min_col and do split lines
+            // that are too-long and splittable.
+            ok_to_split_here = false;
+         }
+         LOG_FMT(LSPLIT, "%s(%d): Recomputing min_col from %zu\n",
+                 __func__, __LINE__, min_col);
 
          log_rule_B("indent_paren_nl");
 
          if (!options::indent_paren_nl())
          {
             log_rule_B("indent_columns");
-            min_col = pc->brace_level * options::indent_columns() + 1;
+            min_col = pc->GetNext()->brace_level * options::indent_columns() + 1;
             LOG_FMT(LSPLIT, "%s(%d): min_col is %zu\n",
                     __func__, __LINE__, min_col);
 
@@ -854,27 +826,55 @@ static void split_fcn_params_greedy(Chunk *fpo)
             LOG_FMT(LSPLIT, "%s(%d): min_col is %zu\n",
                     __func__, __LINE__, min_col);
          }
-
-         // Don't split "()"
-         if (pc->GetType() != E_Token(prev->GetType() + 1))
-         {
-            break;
-         }
       }
+      else if (!pc->Is(CT_COMMA))
+      {
+         continue;
+      }
+
+      // If we don't have a valid splitpoint, then it doesn't matter how long the
+      // line currently is, because we can't split it anywhere. So just remember
+      // this as the next valid splitpoint.
+      //
+      // If this chunk doesn't exceed the length limit, then remember the fact that
+      // we can split this line here. However, if we've hit the closing fparen
+      // without splitting the line so far, then force a split, since we were called
+      // at all and so a split must be necessary.
+      if (  (splitpoint == nullptr)
+         || (  !is_past_width(pc)
+            && (  (pc != fpc)
+               || (added_newlines > 0))))
+      {
+         if (ok_to_split_here)
+         {
+            LOG_FMT(LSPLIT, "%s(%d): Setting splitpoint\n",
+                    __func__, __LINE__);
+            splitpoint = pc;
+         }
+         continue;
+      }
+      // Since we need to split this line and we have a valid place to split it, do
+      // that by adding a newline after the splitpoint and reindenting the remainder
+      // of the line. Then keep splitting this fcn by looping again from the
+      // splitpoint. Note that this ensures that the newline just added is the next
+      // chunk processed by the loop, which will reset splitpoint.
+      pc = splitpoint->GetNext();
+
+      // Don't bother splitting the line if it is already split.
+      if (!pc->IsNewline())
+      {
+         LOG_FMT(LSPLIT, "%s(%d): Splitting long line before '%s', orig_line %zu, orig_col %zu, col %zu\n",
+                 __func__, __LINE__, pc->Text(), pc->orig_line, pc->orig_col, pc->column);
+         newline_add_before(pc);
+         reindent_line(pc, min_col);
+         cpd.changes++;
+         added_newlines++;
+      }
+      pc = splitpoint;
    }
 
-   if (  prev->IsNotNullChunk()
-      && !prev->IsNewline())
-   {
-      LOG_FMT(LSPLIT, "%s(%d): -- ended on %s --\n",
-              __func__, __LINE__, get_token_name(prev->GetType()));
-      LOG_FMT(LSPLIT, "%s(%d): min_col is %zu\n",
-              __func__, __LINE__, min_col);
-      pc = prev->GetNext();
-      newline_add_before(pc);
-      reindent_line(pc, min_col);
-      cpd.changes++;
-   }
+   LOG_FMT(LSPLIT, "%s(%d): Completed splitting\n",
+           __func__, __LINE__);
 } // split_fcn_params_greedy
 
 
@@ -901,12 +901,23 @@ static Chunk *split_fcn_params(Chunk *start)
          exit(EX_SOFTWARE);
       }
    }
-   LOG_FMT(LSPLIT, "%s(%d): '%s', orig_col is %zu, level is %zu\n",
-           __func__, __LINE__, fpo->Text(), fpo->orig_col, fpo->level);
-   split_fcn_params_greedy(fpo);
+   // Find the closing fparen that matches fpo.
+   Chunk *fpc = fpo->GetNextType(CT_FPAREN_CLOSE, fpo->level);
 
-   return(start);
-}
+   if (fpc->IsNullChunk())
+   {
+      fprintf(stderr, "%s(%d): Can't find fparen_close; bailing\n",
+              __func__, __LINE__);
+      log_flush(true);
+      exit(EX_SOFTWARE);
+   }
+   split_fcn_params_greedy(fpo, fpc);
+
+   // If we found the expected FPAREN_OPEN, then we only processed through the
+   // corresponding FPAREN_CLOSE. Otherwise, we processed one chunk beyond that since
+   // that's how we were called.
+   return((fpo->level == start->level) ? fpc->GetNext() : fpc);
+} // split_fcn_params
 
 
 static void split_template(Chunk *start)

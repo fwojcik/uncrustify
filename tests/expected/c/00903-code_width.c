@@ -71,5 +71,20 @@ static void some_really_long_function_name(struct device *dev,
                     "do_examine",
                     -1,
                     "-Allows a player to examine the health and armor of a teammate" );
-}
 
+    anotherfunction(
+        anawfullyveryextremelyexceedinglyexceptionallyoverlylongvariablename,
+        anotherawfullyveryextremelyexceedinglyexceptionallyoverlylongvariablename,
+        a,
+        a_ptr,
+        1,
+        2,
+        stillyetanotherawfullyveryextremelyexceedinglyexceptionallyoverlylongvariablename,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        anacutelyextraordinarilyoverlyhugelyimmenselyinordinatelyremarkablyterriblyterrificallylongvariablename);
+}
