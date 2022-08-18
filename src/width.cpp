@@ -384,13 +384,37 @@ static Chunk *split_line(Chunk *start)
    }
 
    /*
-    * If this is in a function call or prototype, split on commas or right
-    * after the open parenthesis
+    * If this is in a function call or prototype, split on commas or right after the
+    * open parenthesis. Note that this block of if() tests means that if the "FUNC
+    * SPLIT" block is entered, then start cannot be before the opening paren nor
+    * after the closing paren, unless it is a semicolon that immediately follows the
+    * closing paren.
+    *
+    * The reason for the the level checking on function calls is because calls which
+    * are not at the top of the current brace level (e.g. function calls inside an
+    * if() statement) do not get split in this block; they fall through to the
+    * generic line-splitting logic below.
+    *
+    * Similarly, since this "FUNC SPLIT" block should only be entered if we are
+    * certain a newline should be added, an opening paren for a function call inside
+    * a function call should also fall through. This is mostly to handle the case
+    * where a function ends with something like "...., someOtherFn())));". If another
+    * splittable location exists which is_past_width(), then split_line() will be
+    * called again on it eventually.
+    *
+    * Technically, if start is a semicolon then the ParentType cannot be CT_FUNC_DEF,
+    * but all other cases in that part of the if() are possible, so leaving the logic
+    * as-is is just cleaner.
     */
    else if (  start->TestFlags(PCF_IN_FCN_DEF)
-           || start->GetParentType() == CT_FUNC_PROTO            // Issue #1169
-           || (  (start->level == (start->brace_level + 1))
-              && start->TestFlags(PCF_IN_FCN_CALL)))
+           || (  start->TestFlags(PCF_IN_FCN_CALL)
+              && (start->level == (start->brace_level + 1)))
+           || (  !start->TestFlags(PCF_IN_FCN_CALL)
+              && (  (  start->Is(CT_FPAREN_OPEN)
+                    || start->IsSemicolon())
+                 && (  (start->GetParentType() == CT_FUNC_PROTO) // Issue #1169
+                    || (start->GetParentType() == CT_FUNC_DEF)
+                    || (start->GetParentType() == CT_FUNC_CALL)))))
    {
       LOG_FMT(LSPLIT, " ** FUNC SPLIT **\n");
 
