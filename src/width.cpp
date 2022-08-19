@@ -358,12 +358,18 @@ static Chunk *split_line(Chunk *start)
    // Issue #2432
    if (start->TestFlags(PCF_ONE_LINER))
    {
+      Chunk *next;
       LOG_FMT(LSPLIT, "%s(%d): ** ONCE LINER SPLIT **\n", __func__, __LINE__);
-      undo_one_liner(start);
+      next = undo_one_liner(start);
       newlines_cleanup_braces(false);
       // Issue #1352
       cpd.changes++;
-      return(nullptr);
+      // This line isn't split yet, but it will be next main loop.
+      // We don't give up splitting lines here yet, but keep going from the end of
+      // this one-liner. This prevents many long one-liners from turning uncrustify
+      // into an O(N^2) operation. It also helps to prevent problems if there are
+      // aligned chunks after the eventual split point.
+      return(next);
    }
    LOG_FMT(LSPLIT, "%s(%d): before ls_code_width\n", __func__, __LINE__);
 

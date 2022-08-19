@@ -123,8 +123,9 @@ void do_blank_lines();
 /**
  * Clears the PCF_ONE_LINER flag on the current line.
  * Done right before inserting a newline.
+ * Returns the first chunk past what used to be the one liner.
  */
-void undo_one_liner(Chunk *pc);
+Chunk *undo_one_liner(Chunk *pc);
 
 
 /**

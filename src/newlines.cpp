@@ -3686,9 +3686,11 @@ static bool one_liner_nl_ok(Chunk *pc)
 } // one_liner_nl_ok
 
 
-void undo_one_liner(Chunk *pc)
+Chunk *undo_one_liner(Chunk *pc)
 {
    LOG_FUNC_ENTRY();
+
+   Chunk *tmp = pc;
 
    if (  pc != nullptr
       && pc->TestFlags(PCF_ONE_LINER))
@@ -3699,7 +3701,6 @@ void undo_one_liner(Chunk *pc)
 
       // scan backward
       LOG_FMT(LNL1LINE, "%s(%d): scan backward\n", __func__, __LINE__);
-      Chunk *tmp = pc;
 
       while ((tmp = tmp->GetPrev())->IsNotNullChunk())
       {
@@ -3732,6 +3733,7 @@ void undo_one_liner(Chunk *pc)
       }
       LOG_FMT(LNL1LINE, "\n");
    }
+   return(tmp);
 } // undo_one_liner
 
 
